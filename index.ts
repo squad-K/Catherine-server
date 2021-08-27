@@ -1,5 +1,6 @@
 import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
+import { URL } from 'url';
 
 const server = createServer();
 const loggerWss = new WebSocketServer({ noServer: true });
@@ -9,11 +10,14 @@ class Storage {
   storage: {};
   id: number;
   constructor() {
+    this.id = 1;
+    this.storage = {};
   }
 
   save(item) {
     const id = this.id++;
     this.storage[id] = item;
+    return id;
   }
 
   remove(id) {
@@ -32,10 +36,10 @@ function loggerMessageHandler(ws, message) {
     case 'match':
       const { filterIds, data } = message.payload;
       filterIds.forEach(id => {
-        ControllerStorage.find(id).send({
+        ControllerStorage.find(id).send(JSON.stringify({
           type: 'match',
           payload: data,
-        })
+        }));
       });
       break;
   
@@ -46,22 +50,23 @@ function loggerMessageHandler(ws, message) {
 
 loggerWss.on('connection', function connection(ws) {
   const id = loggerStorage.save(ws);
+  console.log('new logger: ', id);
   ws.storageId = id;
-  ws.send({
+  ws.send(JSON.stringify({
     type: 'id',
     payload: id,
-  });
-  ws.on('message', (msg) => loggerMessageHandler(ws, msg))
+  }));
+  ws.on('message', (msg) => loggerMessageHandler(ws, JSON.parse(msg)));
 });
 
 const filters = {};
 function updateFilter(filters) {
   loggerWss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send({
+      client.send(JSON.stringify({
         type: 'updatefilters',
         payload: filters,
-      });
+      }));
     } 
   });
 }
@@ -71,7 +76,7 @@ function controllerMessageHandler(ws, message) {
     case 'filter':
       const filter = message.payload;
       filters[ws.storageId] = filter;
-      updateFilter(filter);
+      updateFilter(filters);
       break;
   
     default:
@@ -83,18 +88,20 @@ const ControllerStorage = new Storage();
 
 controllerWss.on('connection', function connection(ws) {
   const id = ControllerStorage.save(ws);
+  console.log('new controller: ', id);
   ws.storageId = id;
-  ws.send({
+  ws.send(JSON.stringify({
     type: 'id',
     payload: id,
-  });
-  ws.on('message', (msg) => controllerMessageHandler(ws, msg));
+  }));
+  ws.on('message', (msg) => controllerMessageHandler(ws, JSON.parse(msg)));
+
 });
 
 server.on('upgrade', function upgrade(request, socket, head) {
-  const url = new URL(request.url); 
+  const url = new URL(request.url, `http://${request.headers.host}`); 
 
-  if (url.pathname === '/logger') {
+  if (request.url === '/logger') {
     loggerWss.handleUpgrade(request, socket, head, function done(ws) {
       loggerWss.emit('connection', ws, request);
     });
