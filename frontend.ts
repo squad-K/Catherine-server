@@ -1,28 +1,18 @@
-import { WebSocket } from 'ws';
 import { createInterface } from 'readline';
+import { CatherineClient } from './CatherineClient';
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: 'controller> '
 });
 
-console.log(WebSocket);
-const ws = new WebSocket('ws://localhost:4869/controller')
+const client = new CatherineClient('ws://localhost:4869/controller')
 
-ws.on('message', (msg) => {
-  const { type, payload } = JSON.parse(msg);
-  switch (type) {
-    case 'id':
-      console.log('id', payload);
-      break;
-
-    case 'match':
-      console.log('match', payload);
-      break;
-  
-    default:
-      break;
-  }
+client.on('id', (payload) => {
+  console.log('id', payload);
+});
+client.on('match', (payload) => {
+  console.log('match', payload);
 });
 
 rl.prompt();
@@ -34,10 +24,7 @@ rl.on('line', (line) => {
       process.exit(0);
       break;
     default:
-      ws.send(JSON.stringify({
-        type: 'filter',
-        payload: line,
-      }));
+      client.send('filter', line);
       break;
   }
   rl.prompt();

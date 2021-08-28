@@ -1,69 +1,30 @@
 import { createInterface } from 'readline';
-import { WebSocket } from 'ws';
+import { CatherineClient } from './CatherineClient';
+import { CatherineFilter } from './CatherineFilter';
+
+const filter = new CatherineFilter();
+
+const client = new CatherineClient('ws://localhost:4869/logger')
+
+client.on('id', (payload) => {
+  console.log('id', payload);
+});
+client.on('updatefilters', (payload) => {
+  console.log('filters:', payload);
+  filter.setFilters(payload);
+});
+
+filter.onMatch((matchIds, data) => {
+  client.send('match', {
+    filterIds: matchIds,
+    data,
+  });
+});
+
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: 'logger> '
-});
-
-class CatherineFilter {
-  filters: any;
-  onMatchCallback: any;
-  constructor() {
-    this.filters = {};
-  }
-
-  setFilters(filters) {
-    this.filters = filters;
-  }
-
-  writeLog(data: string) {
-    const matchIds = [];
-    for (const id in this.filters) {
-      const filterStr = this.filters[id];
-      if (data.includes(filterStr)) {
-        matchIds.push(id);
-      }
-    }
-    if (matchIds.length) {
-      this.onMatchCallback(matchIds, data);
-    }
-  }
-
-  onMatch(callback) {
-    this.onMatchCallback = callback;
-  }
-}
-
-const filter = new CatherineFilter();
-
-const ws = new WebSocket('ws://localhost:4869/logger')
-
-ws.on('message', (msg) => {
-  const { type, payload } = JSON.parse(msg);
-  switch (type) {
-    case 'id':
-      console.log('id:', payload);
-      break;
-
-    case 'updatefilters':
-      console.log('filters:', payload);
-      filter.setFilters(payload);
-      break;
-
-    default:
-      break;
-  }
-});
-
-filter.onMatch((matchIds, data) => {
-  ws.send(JSON.stringify({
-    type: 'match',
-    payload: {
-      filterIds: matchIds,
-      data,
-    },
-  }));
 });
 
 rl.prompt();
