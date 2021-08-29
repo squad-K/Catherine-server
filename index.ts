@@ -9,7 +9,7 @@ const server = createServer();
 const loggerServer = new CatherineServer();
 const controllerServer = new CatherineServer();
 
-loggerServer.on('match', (ws, payload) => {
+loggerServer.on('match', (connection, payload) => {
   const { filterIds, data } = payload;
   filterIds.forEach(id => {
     controllerServer.to(id).send(JSON.stringify({
@@ -19,9 +19,13 @@ loggerServer.on('match', (ws, payload) => {
   });
 });
 
+loggerServer.on('fetchFilter', (connection) => {
+  connection.send('updateFilter', filters);
+});
+
 const filters = {};
-controllerServer.on('filter', (ws, payload) => {
-  filters[ws.storageId] = payload;
+controllerServer.on('filter', (connection, payload) => {
+  filters[connection.storageId] = payload;
   loggerServer.sendToAll('updateFilter', filters);
 });
 

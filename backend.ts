@@ -8,13 +8,15 @@ const client = new CatherineClient('ws://localhost:4869/logger')
 
 client.on('id', (payload) => {
   console.log('id', payload);
+  client.send('fetchFilter');
 });
-client.on('updatefilters', (payload) => {
+client.on('updateFilter', (payload) => {
   console.log('filters:', payload);
   filter.setFilters(payload);
 });
 
 filter.onMatch((matchIds, data) => {
+  console.log(matchIds, data);
   client.send('match', {
     filterIds: matchIds,
     data,

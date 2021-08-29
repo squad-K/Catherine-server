@@ -14,13 +14,14 @@ export class CatherineClient {
   }
 
   messageHandler(message) {
+    console.log(message);
     const { type, payload } = message;
     if (this.typeListener[type]) {
       this.typeListener[type](payload);
     }
   }
 
-  send(type, payload) {
+  send(type, payload = {}) {
     this.wsClient.send(JSON.stringify({
       type,
       payload,

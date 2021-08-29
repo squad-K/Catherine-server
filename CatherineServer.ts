@@ -23,6 +23,22 @@ class Storage {
   }
 }
 
+class CatherineServerConnection {
+  ws: any;
+  storageId: number;
+  constructor(ws) {
+    this.ws = ws;
+  }
+
+  send(type, payload = {}) {
+    console.log(type, payload);
+    this.ws.send(JSON.stringify({
+      type,
+      payload,
+    }));
+  }
+}
+
 export class CatherineServer {
   socketStorage: Storage;
   wss: WebSocketServer;
@@ -32,21 +48,23 @@ export class CatherineServer {
     this.wss = new WebSocketServer({ noServer: true });
     this.typeListener = {};
 
-    this.wss.on('connection', function connection(ws) {
-      const id = this.socketStorage.save(ws);
+    this.wss.on('connection', (ws) => {
+      const connection = new CatherineServerConnection(ws);
+      const id = this.socketStorage.save(connection);
       console.log('new connection: ', id);
-      ws.storageId = id;
+      connection.storageId = id;
       ws.send(JSON.stringify({
         type: 'id',
         payload: id,
       }));
-      ws.on('message', (msg) => this.messageHandler(ws, JSON.parse(msg)));
+      ws.on('message', (msg) => this.messageHandler(connection, JSON.parse(msg)));
     });
   }
 
   handleUpgrade(request, socket, head) {
-    this.wss.handleUpgrade(request, socket, head, function done(ws) {
-      this.wss.emit('connection', ws, request);
+    const wss = this.wss;
+    wss.handleUpgrade(request, socket, head, function done(ws) {
+      wss.emit('connection', ws, request);
     });
   }
 
@@ -55,10 +73,11 @@ export class CatherineServer {
     return this;
   }
 
-  messageHandler(ws, message) {
+  messageHandler(connection, message) {
+    console.log(message);
     const { type, payload } = message;
     if (this.typeListener[type]) {
-      this.typeListener[type](ws, payload);
+      this.typeListener[type](connection, payload);
     }
   }
 
