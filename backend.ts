@@ -1,27 +1,8 @@
 import { createInterface } from 'readline';
-import { CatherineClient } from './CatherineClient';
-import { CatherineFilter } from './CatherineFilter';
+import { CatherineBackendClient } from './CatherineBackendClient';
 
-const filter = new CatherineFilter();
-
-const client = new CatherineClient('ws://localhost:4869/logger')
-
-client.on('id', (payload) => {
-  console.log('id', payload);
-  client.send('fetchFilter');
-});
-client.on('updateFilter', (payload) => {
-  console.log('filters:', payload);
-  filter.setFilters(payload);
-});
-
-filter.onMatch((matchIds, data) => {
-  console.log(matchIds, data);
-  client.send('match', {
-    filterIds: matchIds,
-    data,
-  });
-});
+const backendClient = new CatherineBackendClient()
+.connect('ws://localhost:4869/logger');
 
 const rl = createInterface({
   input: process.stdin,
@@ -38,7 +19,7 @@ rl.on('line', (line) => {
       process.exit(0);
       break;
     default:
-      filter.writeLog(line);
+      backendClient.writeLog(line);
       break;
   }
   rl.prompt();

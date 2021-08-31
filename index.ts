@@ -12,10 +12,7 @@ const controllerServer = new CatherineServer();
 loggerServer.on('match', (connection, payload) => {
   const { filterIds, data } = payload;
   filterIds.forEach(id => {
-    controllerServer.to(id).send(JSON.stringify({
-      type: 'match',
-      payload: data,
-    }));
+    controllerServer.to(id).send('match', data);
   });
 });
 
